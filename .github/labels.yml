@@ -1,0 +1,56 @@
+# Fuente de verdad de labels del repo.
+# Sincronizado automáticamente al repo por .github/workflows/labels-sync.yml
+# (crea/actualiza vía `gh label create --force`; nunca borra labels existentes).
+#
+# Las labels de "tipo" (bug, enhancement, documentation, question, accessibility, ...)
+# ya existen en el repo y no se redefinen aquí.
+
+# --- Área ---
+- name: "area:gameplay"
+  color: "1d76db"
+  description: "Colisión, rotación, wall kicks, lock de pieza, clear de líneas"
+- name: "area:render"
+  color: "1d76db"
+  description: "Canvas, dibujo, ghost piece, preview de la siguiente pieza"
+- name: "area:input"
+  color: "1d76db"
+  description: "Listener de teclado y controles"
+- name: "area:scoring"
+  color: "1d76db"
+  description: "Puntuación, niveles, dropInterval"
+- name: "area:ui"
+  color: "1d76db"
+  description: "index.html, style.css, overlay, panel lateral"
+- name: "area:docs"
+  color: "1d76db"
+  description: "README, CLAUDE.md"
+- name: "area:ci"
+  color: "1d76db"
+  description: "Workflows y configuración de .github/"
+
+# --- Prioridad ---
+- name: "prioridad:P0"
+  color: "b60205"
+  description: "El juego está roto o no arranca"
+- name: "prioridad:P1"
+  color: "d93f0b"
+  description: "Importante, no bloqueante"
+- name: "prioridad:P2"
+  color: "fbca04"
+  description: "Mejora menor o cosmética"
+
+# --- Tamaño estimado ---
+- name: "size:S"
+  color: "c2e0c6"
+  description: "Cambio pequeño (~< 20 líneas)"
+- name: "size:M"
+  color: "7fdb7f"
+  description: "Cambio moderado"
+- name: "size:L"
+  color: "0e8a16"
+  description: "Cambio grande o que toca varios archivos"
+
+# --- Estado ---
+- name: "needs-info"
+  color: "e4e669"
+  description: "Faltan pasos de reproducción o criterio de aceptación claro"

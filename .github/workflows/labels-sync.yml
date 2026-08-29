@@ -1,0 +1,33 @@
+name: Sync labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/labels.yml"
+  workflow_dispatch: {}
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create or update labels from .github/labels.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          count=$(yq eval '. | length' .github/labels.yml)
+          for i in $(seq 0 $((count - 1))); do
+            name=$(yq eval ".[$i].name" .github/labels.yml)
+            color=$(yq eval ".[$i].color" .github/labels.yml)
+            description=$(yq eval ".[$i].description" .github/labels.yml)
+            echo "Sincronizando label: $name"
+            gh label create "$name" --color "$color" --description "$description" --force
+          done

@@ -1,0 +1,122 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # No reaccionar a: bots (evita bucles con el propio Claude), ediciones que no
+    # tocan título/cuerpo (p.ej. cambios de labels o assignees hechos a mano), o
+    # issues que mencionan @claude (esos ya los atiende claude.yml).
+    if: |
+      github.event.sender.type != 'Bot' &&
+      (github.event.action == 'opened' || github.event.changes.body != null || github.event.changes.title != null) &&
+      !contains(github.event.issue.body, '@claude') &&
+      !contains(github.event.issue.title, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        id: claude-triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh label list:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh api:*)"
+          prompt: |
+            Eres un asistente de triage para el repo de un Tetris en JavaScript vanilla
+            (Canvas + CSS, sin build step). Tu única tarea en esta ejecución es analizar
+            el issue #${{ github.event.issue.number }}, asignarle labels apropiadas y
+            publicar un diagnóstico técnico. NO modifiques código, NO abras pull
+            requests, NO crees ramas ni commits.
+
+            Sigue estos pasos:
+
+            1. Lee el issue completo:
+               `gh issue view ${{ github.event.issue.number }} --json title,body,labels,comments`
+
+            2. Lee las labels disponibles en el repo:
+               `gh label list --limit 100`
+               Regla dura: solo puedes aplicar labels que ya existan en esa lista.
+               Nunca crees labels nuevas ni uses `gh label create`.
+
+            3. Lee el código relevante para entender contra qué se compara el issue:
+               `game.js`, `index.html`, `style.css` y `CLAUDE.md` (este último ya
+               documenta la arquitectura del juego: modelo de tablero, piezas,
+               colisión, wall kicks, loop, scoring, ghost piece, etc. — reutilízalo
+               en vez de re-derivarlo). Usa Read/Grep/Glob para inspeccionar el código
+               con precisión, citando archivo y línea.
+
+            4. Clasifica el issue y aplica labels con
+               `gh issue edit ${{ github.event.issue.number }} --add-label "a,b,c"`:
+               - Un tipo: `bug`, `enhancement`, `documentation`, `question` o
+                 `accessibility` (usa las que ya existen en el repo).
+               - Un área: una de `area:gameplay`, `area:render`, `area:input`,
+                 `area:scoring`, `area:ui`, `area:docs`, `area:ci`.
+               - Una prioridad: `prioridad:P0` (juego roto/no arranca),
+                 `prioridad:P1` (importante no bloqueante) o `prioridad:P2` (menor).
+               - Un tamaño estimado: `size:S`, `size:M` o `size:L`.
+               - Si el issue no da pasos de reproducción claros ni criterio de
+                 aceptación, añade también `needs-info`.
+               No elimines labels que ya estén puestas y no encajen en tu
+               clasificación (pueden haberlas puesto una persona a mano) — solo añade.
+
+            5. Publica el diagnóstico como un comentario "sticky": un único comentario
+               que se actualiza en cada edición del issue en vez de acumularse.
+               - Busca si ya existe un comentario tuyo anterior que empiece por el
+                 marcador exacto `<!-- claude-triage -->`:
+                 `gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments --jq '.[] | select(.body | startswith("<!-- claude-triage -->")) | .id'`
+               - Redacta el nuevo cuerpo del comentario en un archivo temporal,
+                 empezando siempre por la línea `<!-- claude-triage -->` seguida de
+                 las siguientes secciones, en español y en este orden exacto:
+
+                 ## Resumen
+                 (1-2 frases de qué pide el issue)
+
+                 ## Clasificación
+                 (tipo, área, prioridad, tamaño — una línea justificando cada una)
+
+                 ## Archivos y funciones implicadas
+                 (rutas y símbolos concretos, formato `game.js:123 — clearLines()`)
+
+                 ## Causa probable / análisis
+                 (para bugs: hipótesis técnica; para features: cómo encaja en la
+                 arquitectura actual)
+
+                 ## Criterios de aceptación
+                 (checklist verificable en formato `- [ ] ...`)
+
+                 ## Enfoque sugerido
+                 (pasos de implementación en alto nivel, sin escribir código)
+
+                 ## Riesgos y efectos colaterales
+                 (p.ej. si se tocan COLS/ROWS/BLOCK hay que actualizar width/height
+                 del canvas en index.html — regla documentada en CLAUDE.md)
+
+                 ## Confianza y preguntas abiertas
+                 (alta/media/baja + qué información falta, si aplica)
+
+                 Cierra siempre con una línea indicando que para implementar la
+                 solución basta con comentar `@claude` en este issue pidiéndolo,
+                 usando este diagnóstico como contexto.
+
+               - Si ya existía un comentario con el marcador, actualízalo con
+                 `gh api --method PATCH repos/${{ github.repository }}/issues/comments/<id> -f body=@archivo`.
+               - Si no existía, créalo con
+                 `gh issue comment ${{ github.event.issue.number }} --body-file archivo`.
+               - Nunca dejes más de un comentario con el marcador `<!-- claude-triage -->`.
+        env:
+          GH_TOKEN: ${{ github.token }}
