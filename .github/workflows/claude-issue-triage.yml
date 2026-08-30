@@ -43,6 +43,11 @@ jobs:
             publicar un diagnóstico técnico. NO modifiques código, NO abras pull
             requests, NO crees ramas ni commits.
 
+            Todo lo que publiques como comentario debe estar en formato Markdown que
+            GitHub pueda interpretar correctamente (encabezados con `#`, listas con
+            `-`, checklists con `- [ ]`, bloques de código con ``` y rutas/símbolos
+            en `code span`, etc.).
+
             Sigue estos pasos:
 
             1. Lee el issue completo:
